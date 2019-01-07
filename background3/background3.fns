@@ -1,0 +1,23 @@
+; background3.asm
+LoadSpritesLoop                  = $C059
+LoadPalettes                     = $C03D
+LatchController                  = $C0A8
+InsideLoop                       = $C07F
+Forever                          = $C09B
+palette                          = $E438
+LoadPalettesLoop                 = $C04C
+ReadBDone                        = $C0D2
+attributes                       = $E3C0
+background                       = $E000
+LoadSprites                      = $C057
+ReadA                            = $C0B2
+ReadB                            = $C0C2
+vblankwait1                      = $C014
+vblankwait2                      = $C038
+clrmem                           = $C019
+RESET                            = $C000
+sprites                          = $E458
+ReadADone                        = $C0C2
+NMI                              = $C09E
+LoadBackground                   = $C064
+OutsideLoop                      = $C07F

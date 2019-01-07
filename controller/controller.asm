@@ -71,7 +71,7 @@ LoadSpritesLoop:
   LDA sprites, x        ; load data from address (sprites +  x)
   STA $0200, x          ; store into RAM address ($0200 + x)
   INX                   ; X = X + 1
-  CPX #$20              ; Compare X to hex $20, decimal 32
+  CPX #$f0              ; Compare X to hex $20, decimal 32
   BNE LoadSpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
                         ; if compare was equal to 32, keep going down
               
@@ -86,7 +86,6 @@ LoadSpritesLoop:
 Forever:
   JMP Forever     ;jump back to Forever, infinite loop
   
- 
 
 NMI:
   LDA #$00
@@ -124,11 +123,11 @@ ReadA:
   
   LDA $020F ; load sprite 4 position 
   CLC ; make sure carry flag is set 
-  ADC #$01 ; A = A - 1 
+  SBC #$01 ; A = A - 1 
   STA $020F ; save sprite 4 position 
 
   
-ReadADone:        ; handling this button is done
+ReadADone:        ; handling this button is done 
   
 
 ReadB: 
@@ -178,6 +177,11 @@ sprites:
   .db $80, $33, $00, $88   ;sprite 1
   .db $88, $34, $00, $80   ;sprite 2
   .db $88, $35, $00, $88   ;sprite 3
+  
+  .db $80, $32, $00, $90   ;sprite 0
+  .db $80, $33, $00, $98   ;sprite 1
+  .db $88, $34, $00, $90   ;sprite 2
+  .db $88, $35, $00, $98   ;sprite 3
 
   .org $FFFA     ;first of the three vectors starts here
   .dw NMI        ;when an NMI happens (once per frame if enabled) the 
