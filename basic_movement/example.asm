@@ -9,13 +9,13 @@
 	.word nmi
 	.word reset
 	.word irq
-	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
 ; we reserve one byte for storing the data that is read from controller
 .segment "ZEROPAGE"
-buttons1: .res 1
-buttons2: .res 1
+buttons1: .res 1   ; hold state of controller 1
+buttons2: .res 1   ; hold state of controller 2
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "STARTUP" ; avoids warning
 .segment "CODE"
 reset:
@@ -73,46 +73,50 @@ reset:
     bit $2002
     bpl @vblankwait2
 	
-	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
 LoadPalettes:
-  LDA $2002             ; read PPU status to reset the high/low latch
-  LDA #$3F
-  STA $2006             ; write the high byte of $3F00 address
-  LDA #$00
-  STA $2006             ; write the low byte of $3F00 address
-  LDX #$00              ; start out at 0
+	LDA $2002             ; read PPU status to reset the high/low latch
+	LDA #$3F
+	STA $2006             ; write the high byte of $3F00 address
+	LDA #$00
+	STA $2006             ; write the low byte of $3F00 address
+	LDX #$00              ; start out at 0
 LoadPalettesLoop:
-  LDA palette, x        ; load data from address (palette + the value in x)
-                          ; 1st time through loop it will load palette+0
-                          ; 2nd time through loop it will load palette+1
-                          ; 3rd time through loop it will load palette+2
-                          ; etc
-  STA $2007             ; write to PPU
-  INX                   ; X = X + 1
-  CPX #$20              ; Compare X to hex $10, decimal 16 - copying 16 bytes = 4 sprites
-  BNE LoadPalettesLoop  ; Branch to LoadPalettesLoop if compare was Not Equal to zero
-                        ; if compare was equal to 32, keep going down
-
+	LDA palette, x        ; load data from address (palette + the value in x)
+						  ; 1st time through loop it will load palette+0
+						  ; 2nd time through loop it will load palette+1
+						  ; 3rd time through loop it will load palette+2
+						  ; etc
+	STA $2007             ; write to PPU
+	INX                   ; X = X + 1
+	CPX #$20              ; Compare X to hex $10, decimal 16 - copying 16 bytes = 4 sprites
+	BNE LoadPalettesLoop  ; Branch to LoadPalettesLoop if compare was Not Equal to zero
+						; if compare was equal to 32, keep going down
 
 
 LoadSprites:
-  LDX #$00              ; start at 0
+	LDX #$00              ; start at 0
 LoadSpritesLoop:
-  LDA sprites, x        ; load data from address (sprites +  x)
-  STA $0200, x          ; store into RAM address ($0200 + x)
-  INX                   ; X = X + 1
-  CPX #$20              ; Compare X to hex $20, decimal 32
-  BNE LoadSpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
-                        ; if compare was equal to 32, keep going down
-              
-              
+	LDA sprites, x        ; load data from address (sprites +  x)
+	STA $0200, x          ; store into RAM address ($0200 + x)
+	INX                   ; X = X + 1
+	CPX #$20              ; Compare X to hex $20, decimal 32
+	BNE LoadSpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
+						; if compare was equal to 32, keep going down
+			  
+			  
 
-  LDA #%10000000   ; enable NMI, sprites from Pattern Table 1
-  STA $2000
+	LDA #%10000000   ; enable NMI, sprites from Pattern Table 1
+	STA $2000
 
-  LDA #%10010000   ; enable sprites
-  STA $2001
+	LDA #%10010000   ; enable sprites
+	STA $2001
 
+forever:
+	jmp forever
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; main task - run on every vblank  
 nmi:
 	LDA #$00
 	STA $2003       ; set the low byte (00) of the RAM address
@@ -121,16 +125,16 @@ nmi:
 	jsr readjoy
 	jsr moveplayer
 	
-	rti
+	rti  ; return from interrupt
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 irq:
-
-forever:
-	jmp forever
+	rti
 	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 JOYPAD1 = $4016
 JOYPAD2 = $4017
-
+; read the controllers and store the button states in buttonsx vars
 readjoy:
     lda #$01
     sta JOYPAD1
@@ -149,7 +153,7 @@ loop:
     bcc loop
     rts
 	
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 BUTTON_A      = 1 << 7
 BUTTON_B      = 1 << 6
 BUTTON_SELECT = 1 << 5
@@ -216,63 +220,63 @@ ReadDown:
 ReadDownDone:        ; handling this button is done   
 
 ReadLeft: 
-  LDA buttons1
-  AND #BUTTON_LEFT
-  BEQ ReadLeftDone   ; branch to ReadLeftDone if button is NOT pressed (0)
-                  ; add instructions here to do something when button IS pressed (1)
-  LDA $0203       ; load sprite X position
-  SEC             ; make sure carry flag is set
-  SBC #$01        ; A = A - 1
-  STA $0203       ; save sprite X position
-  
-  LDA $0207 ; load sprite 2 position 
-  SEC ; make sure carry flag is set 
-  SBC #$01 ; A = A - 1 
-  STA $0207 ; save sprite 2 position
-  
-  LDA $020B ; load sprite 3 position 
-  SEC ; make sure carry flag is set 
-  SBC #$01 ; A = A - 1 
-  STA $020B ; save sprite 3 position 
-  
-  LDA $020F ; load sprite 4 position 
-  SEC ; make sure carry flag is set 
-  SBC #$01 ; A = A - 1 
-  STA $020F ; save sprite 4 position 
+	LDA buttons1
+	AND #BUTTON_LEFT
+	BEQ ReadLeftDone   ; branch to ReadLeftDone if button is NOT pressed (0)
+				  ; add instructions here to do something when button IS pressed (1)
+	LDA $0203       ; load sprite X position
+	SEC             ; make sure carry flag is set
+	SBC #$01        ; A = A - 1
+	STA $0203       ; save sprite X position
+
+	LDA $0207 ; load sprite 2 position 
+	SEC ; make sure carry flag is set 
+	SBC #$01 ; A = A - 1 
+	STA $0207 ; save sprite 2 position
+
+	LDA $020B ; load sprite 3 position 
+	SEC ; make sure carry flag is set 
+	SBC #$01 ; A = A - 1 
+	STA $020B ; save sprite 3 position 
+
+	LDA $020F ; load sprite 4 position 
+	SEC ; make sure carry flag is set 
+	SBC #$01 ; A = A - 1 
+	STA $020F ; save sprite 4 position 
   
 ReadLeftDone:        ; handling this button is done
 
 ReadRight: 
-  LDA buttons1
-  AND #BUTTON_RIGHT
-  BEQ ReadRightDone   ; branch to ReadRightDone if button is NOT pressed (0)
-                  ; add instructions here to do something when button IS pressed (1)
-  LDA $0203       ; load sprite X position
-  CLC             ; make sure the carry flag is clear
-  ADC #$01        ; A = A + 1
-  STA $0203       ; save sprite X position
-  
-  LDA $0207 ; load sprite 2 position 
-  CLC ; make sure carry flag is set 
-  ADC #$01 ; A = A - 1 
-  STA $0207 ; save sprite 2 position
-  
-  LDA $020B ; load sprite 3 position 
-  CLC ; make sure carry flag is set 
-  ADC #$01 ; A = A - 1 
-  STA $020B ; save sprite 3 position 
-  
-  LDA $020F ; load sprite 4 position 
-  CLC ; make sure carry flag is set 
-  ADC #$01 ; A = A - 1 
-  STA $020F ; save sprite 4 position 
+	LDA buttons1
+	AND #BUTTON_RIGHT
+	BEQ ReadRightDone   ; branch to ReadRightDone if button is NOT pressed (0)
+				  ; add instructions here to do something when button IS pressed (1)
+	LDA $0203       ; load sprite X position
+	CLC             ; make sure the carry flag is clear
+	ADC #$01        ; A = A + 1
+	STA $0203       ; save sprite X position
 
-  
+	LDA $0207 ; load sprite 2 position 
+	CLC ; make sure carry flag is set 
+	ADC #$01 ; A = A - 1 
+	STA $0207 ; save sprite 2 position
+
+	LDA $020B ; load sprite 3 position 
+	CLC ; make sure carry flag is set 
+	ADC #$01 ; A = A - 1 
+	STA $020B ; save sprite 3 position 
+
+	LDA $020F ; load sprite 4 position 
+	CLC ; make sure carry flag is set 
+	ADC #$01 ; A = A - 1 
+	STA $020F ; save sprite 4 position 
+
 ReadRightDone:        ; handling this button is done
   
-	rts
+	rts   ; end of moveplayer
 		
-		
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; constant data		
 palette:
   .byte $30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$3A,$3B,$3C,$3D,$3E,$0F
   .byte $0F,$1C,$15,$14,$31,$02,$38,$3C,$0F,$1C,$15,$14,$31,$02,$38,$3C
@@ -286,6 +290,6 @@ sprites:
 
 	
 .segment "CHARS"
-    .incbin "mario.chr" ; if you have one
+    .incbin "mario.chr" ; include chr data file
 	
 	
