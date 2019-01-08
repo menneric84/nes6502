@@ -283,10 +283,15 @@ palette:
 
 sprites:
      ;vert tile attr horiz
-  .byte $80, $05, $00, $80   ;sprite 0
-  .byte $80, $06, $00, $88   ;sprite 1
-  .byte $88, $15, $00, $80   ;sprite 2
-  .byte $88, $16, $00, $88   ;sprite 3
+  .byte $A0, $05, $00, $10   ;sprite 0
+  .byte $A0, $06, $00, $18   ;sprite 1
+  .byte $A8, $15, $00, $10   ;sprite 2
+  .byte $A8, $16, $00, $18   ;sprite 3
+
+  .byte $50, $00, $00, $80   ;sprite 0
+  .byte $50, $01, $00, $88   ;sprite 1
+  .byte $58, $10, $00, $80   ;sprite 2
+  .byte $58, $11, $00, $88   ;sprite 3
 
 	
 .segment "CHARS"
