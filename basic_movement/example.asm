@@ -10,10 +10,15 @@
 	.word reset
 	.word irq
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
-; we reserve one byte for storing the data that is read from controller
 .segment "ZEROPAGE"
+
+; we reserve one byte for storing the data that is read from controller
 buttons1: .res 1   ; hold state of controller 1
 buttons2: .res 1   ; hold state of controller 2
+
+xvelocity: .res 1
+yvelocity: .res 1
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "STARTUP" ; avoids warning
@@ -123,6 +128,7 @@ nmi:
 	LDA #$02
 	STA $4014       ; set the high byte (02) of the RAM address, start the transfer
 	jsr readjoy
+	jsr processinput
 	jsr moveplayer
 	
 	rti  ; return from interrupt
@@ -163,118 +169,113 @@ BUTTON_DOWN   = 1 << 2
 BUTTON_LEFT   = 1 << 1
 BUTTON_RIGHT  = 1 << 0
 
-moveplayer:	
-; read the controller button status and move player sprites accordingly
+
+processinput:
+; read the controller button status and update the player movement velocities
+
 ReadUp:
 	lda buttons1
 	AND #BUTTON_UP  
-	BEQ ReadUpDone   ; branch to ReadUpDone if button is NOT pressed (0)
+	BEQ ReadDown   ; branch if button is NOT pressed (0)
 				  ; add instructions here to do something when button IS pressed (1)
-	LDA $0200       ; load sprite Y position
-	SEC             ; make sure carry flag is set
-	SBC #$01        ; A = A - 1
-	STA $0200       ; save sprite X position
-
-	LDA $0204 ; load sprite 2 position 
-	SEC ; make sure carry flag is set 
-	SBC #$01 ; A = A - 1 
-	STA $0204 ; save sprite 2 position
-
-	LDA $0208 ; load sprite 3 position 
-	SEC ; make sure carry flag is set 
-	SBC #$01 ; A = A - 1 
-	STA $0208 ; save sprite 3 position 
-
-	LDA $020C ; load sprite 4 position 
-	SEC ; make sure carry flag is set 
-	SBC #$01 ; A = A - 1 
-	STA $020C ; save sprite 4 position 
-ReadUpDone:
+	LDA #$FF		  
+	STA yvelocity
+	JMP ReadUpDownDone
 
 ReadDown:
 	LDA buttons1      
 	AND #BUTTON_DOWN 
-	BEQ ReadDownDone   ; branch to ReadDownDone if button is NOT pressed (0)
+	BEQ ReadUpDownReleased   ; branch if button is NOT pressed (0)
 				  ; add instructions here to do something when button IS pressed (1)
 
+	LDA #$01			  
+	STA yvelocity
+	JMP ReadUpDownDone
+
+ReadUpDownReleased:
+	; neither up or down was pressed, clear the y velocity
+    LDA #$00
+	STA yvelocity
+
+ReadUpDownDone:        ; done handling up/down input
+
+	
+ReadLeft:
+	lda buttons1
+	AND #BUTTON_LEFT  
+	BEQ ReadRight   ; branch if button is NOT pressed (0)
+				  ; add instructions here to do something when button IS pressed (1)
+	LDA #$FF		  
+	STA xvelocity
+	JMP ReadLeftRightDone
+
+ReadRight:
+	LDA buttons1      
+	AND #BUTTON_RIGHT
+	BEQ ReadLeftRightReleased   ; branch if button is NOT pressed (0)
+				  ; add instructions here to do something when button IS pressed (1)
+
+	LDA #$01			  
+	STA xvelocity
+	JMP ReadLeftRightDone
+
+ReadLeftRightReleased:
+	; neither up or down was pressed, clear the y velocity
+    LDA #$00
+	STA xvelocity
+
+ReadLeftRightDone:        ; done handling left/right input
+
+	rts   ; end of processinput
+		
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+moveplayer:	
+; read the controller button status and move player sprites accordingly
+; update X position of player sprite
+	LDA $0203       ; load sprite X position
+	CLC             ; make sure the carry flag is clear
+	ADC xvelocity       
+	STA $0203       ; save sprite X position
+
+	LDA $0207 ; load sprite 2 position 
+	CLC ; make sure carry flag is set 
+	ADC xvelocity
+	STA $0207 ; save sprite 2 position
+
+	LDA $020B ; load sprite 3 position 
+	CLC ; make sure carry flag is set 
+	ADC xvelocity
+	STA $020B ; save sprite 3 position 
+
+	LDA $020F ; load sprite 4 position 
+	CLC ; make sure carry flag is set 
+	ADC xvelocity 
+	STA $020F ; save sprite 4 position 
+
+; update Y position of player sprite
 	LDA $0200       ; load sprite Y position
 	CLC             ; make sure the carry flag is clear
-	ADC #$01        ; A = A + 1
+	ADC yvelocity
 	STA $0200       ; save sprite Y position
 
 	LDA $0204 ; load sprite 2 position 
 	CLC ; make sure carry flag is set 
-	ADC #$01 ; A = A + 1 
+	ADC yvelocity
 	STA $0204 ; save sprite 2 position
 
 	LDA $0208 ; load sprite 3 position 
 	CLC ; make sure carry flag is set 
-	ADC #$01 ; A = A + 1 
+	ADC yvelocity
 	STA $0208 ; save sprite 3 position 
 
 	LDA $020C ; load sprite 4 position 
 	CLC ; make sure carry flag is set 
-	ADC #$01 ; A = A + 1 
+	ADC yvelocity
 	STA $020C ; save sprite 4 position 
-
-ReadDownDone:        ; handling this button is done   
-
-ReadLeft: 
-	LDA buttons1
-	AND #BUTTON_LEFT
-	BEQ ReadLeftDone   ; branch to ReadLeftDone if button is NOT pressed (0)
-				  ; add instructions here to do something when button IS pressed (1)
-	LDA $0203       ; load sprite X position
-	SEC             ; make sure carry flag is set
-	SBC #$01        ; A = A - 1
-	STA $0203       ; save sprite X position
-
-	LDA $0207 ; load sprite 2 position 
-	SEC ; make sure carry flag is set 
-	SBC #$01 ; A = A - 1 
-	STA $0207 ; save sprite 2 position
-
-	LDA $020B ; load sprite 3 position 
-	SEC ; make sure carry flag is set 
-	SBC #$01 ; A = A - 1 
-	STA $020B ; save sprite 3 position 
-
-	LDA $020F ; load sprite 4 position 
-	SEC ; make sure carry flag is set 
-	SBC #$01 ; A = A - 1 
-	STA $020F ; save sprite 4 position 
-  
-ReadLeftDone:        ; handling this button is done
-
-ReadRight: 
-	LDA buttons1
-	AND #BUTTON_RIGHT
-	BEQ ReadRightDone   ; branch to ReadRightDone if button is NOT pressed (0)
-				  ; add instructions here to do something when button IS pressed (1)
-	LDA $0203       ; load sprite X position
-	CLC             ; make sure the carry flag is clear
-	ADC #$01        ; A = A + 1
-	STA $0203       ; save sprite X position
-
-	LDA $0207 ; load sprite 2 position 
-	CLC ; make sure carry flag is set 
-	ADC #$01 ; A = A - 1 
-	STA $0207 ; save sprite 2 position
-
-	LDA $020B ; load sprite 3 position 
-	CLC ; make sure carry flag is set 
-	ADC #$01 ; A = A - 1 
-	STA $020B ; save sprite 3 position 
-
-	LDA $020F ; load sprite 4 position 
-	CLC ; make sure carry flag is set 
-	ADC #$01 ; A = A - 1 
-	STA $020F ; save sprite 4 position 
-
-ReadRightDone:        ; handling this button is done
-  
-	rts   ; end of moveplayer
-		
+	
+	rts  ; end of moveplayer
+	
+	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; constant data		
 palette:
