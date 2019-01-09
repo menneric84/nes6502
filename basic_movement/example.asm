@@ -19,6 +19,8 @@ buttons2: .res 1   ; hold state of controller 2
 xvelocity: .res 1
 yvelocity: .res 1
 
+playerx: .res 1
+playery: .res 1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "STARTUP" ; avoids warning
@@ -110,13 +112,22 @@ LoadSpritesLoop:
 						; if compare was equal to 32, keep going down
 			  
 			  
+; initialize player position
+PLAYER_STARTX = 120
+PLAYER_STARTY = 180
+	LDA #PLAYER_STARTX
+	STA playerx
+	LDA #PLAYER_STARTY
+	STA playery
 
+	
 	LDA #%10000000   ; enable NMI, sprites from Pattern Table 1
 	STA $2000
 
 	LDA #%10010000   ; enable sprites
 	STA $2001
 
+	
 forever:
 	jmp forever
 	
@@ -130,6 +141,7 @@ nmi:
 	jsr readjoy
 	jsr processinput
 	jsr moveplayer
+	jsr UpdateSprites
 	
 	rti  ; return from interrupt
 
@@ -241,8 +253,9 @@ XPOSMAX = 230
 YPOSMIN = 10
 YPOSMAX = 190
 
+; check player x boundaries
 	; check right boundary
-	LDA $0203
+	LDA playerx     
 	CLC
 	ADC xvelocity
 	CMP #XPOSMAX
@@ -253,35 +266,20 @@ YPOSMAX = 190
 	BCS updatex  ; within boundary
 
 outboundx:
-	LDA #$00
+; clear velocity since we would be outside of the boundary
+	LDA #$00    
 	STA xvelocity
 	
 updatex:
 ; update X position of player sprite
-	
-	LDA $0203       ; load sprite X position
-	CLC             ; make sure the carry flag is clear
-	ADC xvelocity       
-	STA $0203       ; save sprite X position
-
-	LDA $0207 ; load sprite 2 position 
-	CLC ; make sure carry flag is set 
+	LDA playerx
+	CLC
 	ADC xvelocity
-	STA $0207 ; save sprite 2 position
+	STA playerx
 
-	LDA $020B ; load sprite 3 position 
-	CLC ; make sure carry flag is set 
-	ADC xvelocity
-	STA $020B ; save sprite 3 position 
-
-	LDA $020F ; load sprite 4 position 
-	CLC ; make sure carry flag is set 
-	ADC xvelocity 
-	STA $020F ; save sprite 4 position 
-
-
+; check player y boundaries
 	; check bottom boundary
-	LDA $0200
+	LDA playery
 	CLC
 	ADC yvelocity
 	CMP #YPOSMAX
@@ -292,33 +290,43 @@ updatex:
 	BCS updatey  ; within boundary
 
 outboundy:
+; clear velocity since we would be outside of the boundary
 	LDA #$00
 	STA yvelocity
 
 updatey:
 ; update Y position of player sprite
-	LDA $0200       ; load sprite Y position
-	CLC             ; make sure the carry flag is clear
+	LDA playery
+	CLC
 	ADC yvelocity
-	STA $0200       ; save sprite Y position
+	STA playery
 
-	LDA $0204 ; load sprite 2 position 
-	CLC ; make sure carry flag is set 
-	ADC yvelocity
-	STA $0204 ; save sprite 2 position
-
-	LDA $0208 ; load sprite 3 position 
-	CLC ; make sure carry flag is set 
-	ADC yvelocity
-	STA $0208 ; save sprite 3 position 
-
-	LDA $020C ; load sprite 4 position 
-	CLC ; make sure carry flag is set 
-	ADC yvelocity
-	STA $020C ; save sprite 4 position 
-	
 	rts  ; end of moveplayer
 	
+UpdateSprites:
+	; update player sprite
+	LDA playerx
+	STA $0203       ; save sprite 1 X position
+	STA $020B       ; save sprite 3 X position
+	
+	CLC
+	ADC #$08        ; move to the right most sprite position
+	
+	STA $0207       ; save sprite 2 X position
+	STA $020F       ; save sprite 4 X position
+	
+	LDA playery
+	STA $0200       ; save sprite 1 Y position
+	STA $0204       ; save sprite 2 Y position
+	
+	CLC
+	ADC #$08        ; move to the bottom most sprite position
+	
+	STA $0208       ; save sprite 3 Y position
+	STA $020C       ; save sprite 4 Y position
+	
+	rts
+
 	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; constant data		
@@ -338,6 +346,7 @@ sprites:
   .byte $58, $10, $00, $80   ;sprite 2
   .byte $58, $11, $00, $88   ;sprite 3
 
+  .byte $00, $00, $00, $00   ;sprite 0
 	
 .segment "CHARS"
     .incbin "char.chr" ; include chr data file
