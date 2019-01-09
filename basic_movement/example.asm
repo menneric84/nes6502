@@ -231,7 +231,34 @@ ReadLeftRightDone:        ; done handling left/right input
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
 moveplayer:	
 ; read the controller button status and move player sprites accordingly
+
+; for screen boundaries these are based on position of top left sprite in player
+; this boundary check doesn't check for overflow so it assumes velocity is kept less than 
+;  the boundary size so the player movement can't jump through the boundary to the other side
+;  e.g.  for a boundary of 10 from 0 or 256, the max velocity needs to be kept below 10
+XPOSMIN = 10
+XPOSMAX = 230
+YPOSMIN = 10
+YPOSMAX = 190
+
+	; check right boundary
+	LDA $0203
+	CLC
+	ADC xvelocity
+	CMP #XPOSMAX
+	BCS outboundx ; outside boundary
+	
+	; check left boundary
+	CMP #XPOSMIN
+	BCS updatex  ; within boundary
+
+outboundx:
+	LDA #$00
+	STA xvelocity
+	
+updatex:
 ; update X position of player sprite
+	
 	LDA $0203       ; load sprite X position
 	CLC             ; make sure the carry flag is clear
 	ADC xvelocity       
@@ -252,6 +279,23 @@ moveplayer:
 	ADC xvelocity 
 	STA $020F ; save sprite 4 position 
 
+
+	; check bottom boundary
+	LDA $0200
+	CLC
+	ADC yvelocity
+	CMP #YPOSMAX
+	BCS outboundy ; outside boundary
+	
+	; check top boundary
+	CMP #YPOSMIN
+	BCS updatey  ; within boundary
+
+outboundy:
+	LDA #$00
+	STA yvelocity
+
+updatey:
 ; update Y position of player sprite
 	LDA $0200       ; load sprite Y position
 	CLC             ; make sure the carry flag is clear
