@@ -111,11 +111,24 @@ LoadPlayerSpritesLoop:
 	BNE LoadPlayerSpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
 						; reached end of playersprite data, keep going down
 
+LoadMissleSprite:
+	LDX #$00              ; start at 0
+LoadMissleSpriteLoop:
+	LDA misslesprite, x        ; load data from address (sprites +  x)
+	STA $0210, x          ; store into RAM address ($0210 + x)
+	INX                   ; X = X + 1
+	CPX #4              ; bytes of misslesprite data
+	BNE LoadMissleSpriteLoop   ; Branch to LoadMissleSpriteLoop if compare was Not Equal to zero
+						; reached end of missleprite data, keep going down
+MISSLE_X_ADDR = $0213
+MISSLE_Y_ADDR = $0210
+
+						
 LoadEnemySprites:
 	LDX #$00              ; start at 0
 LoadEnemySpritesLoop:
 	LDA enemysprites, x        ; load data from address (sprites +  x)
-	STA $0210, x        ; store into RAM address ($0210 + x)
+	STA $0214, x        ; store into RAM address ($0214 + x)
 		
 	INX                   
 	CPX #160              ; bytes of enemy sprite data
@@ -132,7 +145,6 @@ LoadEnemySpritesLoop:
 	LDA #PLAYER_STARTY
 	STA playery
 
-
 	LDA #%10000000   ; enable NMI, sprites from Pattern Table 1
 	STA $2000
 
@@ -146,14 +158,17 @@ forever:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; main task - run on every vblank  
 nmi:
+	; DMA transfer sprite data from $0200 to the PPU SPR-RAM 
 	LDA #$00
 	STA $2003       ; set the low byte (00) of the RAM address
 	LDA #$02
-	STA $4014       ; set the high byte (02) of the RAM address, start the transfer
+	STA $4014       ; set the high byte (02) of the RAM address, start the transfer (DMA transfer 256 bytes)
+	
 	jsr readjoy
 	jsr processinput
 	jsr moveplayer
-	jsr UpdateSprites
+	jsr UpdatePlayerSprites
+	jsr UpdateMissle
 
 	rti  ; return from interrupt
 
@@ -224,6 +239,29 @@ ReadLeftRightReleased:
 
 ReadLeftRightDone:        ; done handling left/right input
 
+ReadButtonA:
+	lda buttons1
+	AND #BUTTON_A
+	BEQ ReadButtonADone   ; branch if button is NOT pressed (0)
+				  ; add instructions here to do something when button IS pressed (1)
+	LDA MISSLE_Y_ADDR
+	CMP #$FF                  ; check if missle is currently hidden
+	BNE ReadButtonADone       ; don't shoot if a missle is currenlty on screen
+	
+	LDA playery
+	SEC
+	SBC #$08   ;offset to above player sprite
+	STA MISSLE_Y_ADDR
+	
+	LDA playerx
+	CLC
+	ADC #$04    ; offset to middle of player sprite
+	STA MISSLE_X_ADDR
+	
+	
+ReadButtonADone:
+
+
 	rts   ; end of processinput
 		
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
@@ -289,7 +327,27 @@ updatey:
 
 	rts  ; end of moveplayer
 	
-UpdateSprites:
+UpdateMissle:
+	LDA MISSLE_Y_ADDR
+	CMP #$FF   ;chekc if missle already hidden
+	BNE CheckMissleTop
+	RTS   ;missle is hidden, so return
+CheckMissleTop:
+	CMP #$02     ;check if missle hit top of screen
+	BCS MoveMissle   
+	LDA #$FF
+	STA MISSLE_Y_ADDR ; hide the missle
+	RTS
+	
+MoveMissle:
+	SEC
+	SBC #$02    ; move up screen
+	
+	STA MISSLE_Y_ADDR
+	RTS
+	
+	
+UpdatePlayerSprites:
 	; update player sprite
 	LDA playerx
 	STA $0203       ; save sprite 1 X position
@@ -311,6 +369,7 @@ UpdateSprites:
 	STA $0208       ; save sprite 3 Y position
 	STA $020C       ; save sprite 4 Y position
 	
+	
 	rts
 
 	
@@ -328,6 +387,9 @@ playersprites:
   .byte $A8, $00, $00, $20   ;sprite 2
   .byte $A8, $00, $00, $28   ;sprite 3
 
+misslesprite:
+  .byte $FF, $07, $00, $00  ;missle  (Y = FF so hidden at start)
+  
 enemysprites:
   .byte $50, $01, $00, $3E   ;enemy type 1
   .byte $50, $01, $00, $4E   ;enemy type 1
