@@ -101,16 +101,27 @@ LoadPalettesLoop:
 						; if compare was equal to 32, keep going down
 
 
-LoadSprites:
+LoadPlayerSprites:
 	LDX #$00              ; start at 0
-LoadSpritesLoop:
-	LDA sprites, x        ; load data from address (sprites +  x)
+LoadPlayerSpritesLoop:
+	LDA playersprites, x        ; load data from address (sprites +  x)
 	STA $0200, x          ; store into RAM address ($0200 + x)
 	INX                   ; X = X + 1
-	CPX #$B0              ; Compare X to hex $20, decimal 32
-	BNE LoadSpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
-						; if compare was equal to 32, keep going down
-			  
+	CPX #16               ; bytes of playersprite data
+	BNE LoadPlayerSpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
+						; reached end of playersprite data, keep going down
+
+LoadEnemySprites:
+	LDX #$00              ; start at 0
+LoadEnemySpritesLoop:
+	LDA enemysprites, x        ; load data from address (sprites +  x)
+	STA $0210, x        ; store into RAM address ($0210 + x)
+		
+	INX                   
+	CPX #160              ; bytes of enemy sprite data
+	BNE LoadEnemySpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
+						; reached end of enemysprite data, keeep going down
+				  
 			  
 ; initialize player position
 	PLAYER_STARTX = 120
@@ -309,7 +320,7 @@ palette:
   .byte $30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$3A,$3B,$3C,$3D,$3E,$0F
   .byte $0F,$1C,$15,$14,$31,$02,$38,$3C,$0F,$1C,$15,$14,$31,$02,$38,$3C
 
-sprites:
+playersprites:
   ;vert tile attr horiz
   ;player object
   .byte $A0, $00, $00, $20   ;sprite 0
@@ -317,6 +328,7 @@ sprites:
   .byte $A8, $00, $00, $20   ;sprite 2
   .byte $A8, $00, $00, $28   ;sprite 3
 
+enemysprites:
   .byte $50, $01, $00, $3E   ;enemy type 1
   .byte $50, $01, $00, $4E   ;enemy type 1
   .byte $50, $01, $00, $5E   ;enemy type 1
