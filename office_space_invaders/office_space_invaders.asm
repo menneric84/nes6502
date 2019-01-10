@@ -22,6 +22,9 @@ yvelocity: .res 1
 playerx: .res 1
 playery: .res 1
 
+enemyx: .res 1
+enemyy: .res 1
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "STARTUP" ; avoids warning
 .segment "CODE"
@@ -139,12 +142,16 @@ LoadEnemySpritesLoop:
 ; initialize player position
 	PLAYER_STARTX = 120
 	PLAYER_STARTY = 180
-
+	
 	LDA #PLAYER_STARTX
 	STA playerx
 	LDA #PLAYER_STARTY
 	STA playery
-
+	;initialize left most enemy of first row
+	LDA #$3E
+	STA enemyx
+	LDA #$50
+	STA enemyy
 	LDA #%10000000   ; enable NMI, sprites from Pattern Table 1
 	STA $2000
 
@@ -169,7 +176,8 @@ nmi:
 	jsr moveplayer
 	jsr UpdatePlayerSprites
 	jsr UpdateMissle
-
+	jsr MoveEnemySprites
+	jsr MoveEnemySpritesLoop
 	rti  ; return from interrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -371,7 +379,22 @@ UpdatePlayerSprites:
 	
 	
 	rts
-
+MoveEnemySprites:
+	LDX $00             ; start at 0
+	RTS
+MoveEnemySpritesLoop:
+	INX   
+	INX
+	INX
+	INX
+	LDA $0217, x
+	CLC
+	ADC #$01
+	STA $0217, x     
+	CPX #$98                   ; bytes of enemy sprite data
+	BNE MoveEnemySpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
+						       ; reached end of enemysprite data, keeep going down
+	RTS
 	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; constant data		
