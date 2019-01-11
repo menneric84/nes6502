@@ -158,6 +158,7 @@ LoadEnemySpritesLoop:
 	LDA #%10010000   ; enable sprites
 	STA $2001
 
+	jsr init_apu
 	
 forever:
 	jmp forever
@@ -266,6 +267,13 @@ ReadButtonA:
 	ADC #$04    ; offset to middle of player sprite
 	STA MISSLE_X_ADDR
 	
+	; fire missle sound
+	lda #$9F
+    sta $400C
+    lda #$22
+    sta $400E
+	lda #$80
+	sta $400F
 	
 ReadButtonADone:
 
@@ -396,6 +404,28 @@ MoveEnemySpritesLoop:
 						       ; reached end of enemysprite data, keeep going down
 	RTS
 	
+init_apu:
+        ; Init $4000-4013
+        ldy #$13
+init_apu_loop:  lda init_apu_regs,y
+        sta $4000,y
+        dey
+        bpl init_apu_loop
+ 
+        ; We have to skip over $4014 (OAMDMA)
+        lda #$0f
+        sta $4015
+        lda #$40
+        sta $4017
+   
+        rts
+init_apu_regs:
+        .byte $30,$08,$00,$00
+        .byte $30,$08,$00,$00
+        .byte $80,$00,$00,$00
+        .byte $30,$00,$00,$00
+        .byte $00,$00,$00,$00
+		
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; constant data		
 palette:
