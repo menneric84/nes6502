@@ -177,6 +177,7 @@ nmi:
 	jsr moveplayer
 	jsr UpdatePlayerSprites
 	jsr UpdateMissle
+	jsr CheckMissleCollision
 	jsr MoveEnemySprites
 	jsr MoveEnemySpritesLoop
 	rti  ; return from interrupt
@@ -422,23 +423,75 @@ UpdatePlayerSprites:
 	
 	
 	rts
+	
+FIRST_ENEMY_Y_ADDR = $0214
+FIRST_ENEMY_X_ADDR = $0217
+ENEMY_SPRITE_DATA_LEN = $98
+	
 MoveEnemySprites:
 	LDX $00             ; start at 0
 	RTS
 MoveEnemySpritesLoop:
+	LDA FIRST_ENEMY_X_ADDR, x
+	CLC
+	ADC #$01
+	STA FIRST_ENEMY_X_ADDR, x     
 	INX   
 	INX
 	INX
 	INX
-	LDA $0217, x
-	CLC
-	ADC #$01
-	STA $0217, x     
-	CPX #$98                   ; bytes of enemy sprite data
+	CPX #ENEMY_SPRITE_DATA_LEN                   ; bytes of enemy sprite data
 	BNE MoveEnemySpritesLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
 						       ; reached end of enemysprite data, keeep going down
 	RTS
 	
+CheckMissleCollision:
+	LDA MISSLE_Y_ADDR
+	CMP #$FF
+	BEQ CheckMissleCollisionEnd
+	
+	LDX $00             ; start at 0
+CheckMissleCollisionLoop:
+; enemy.x > missle.x + missle.width ||
+; enemy.x + enemy.width < missle.x ||
+; enemy.y > missle.y + missle.height ||
+; enemy.y + enemy.height < missle.y
+;  then no collision
+	LDA MISSLE_X_ADDR
+	ADC #$08
+	CMP FIRST_ENEMY_X_ADDR, x
+	BCS NoCollision
+	LDA FIRST_ENEMY_X_ADDR, x
+	ADC #$08
+	CMP MISSLE_X_ADDR
+	BCC NoCollision
+	
+	LDA MISSLE_Y_ADDR
+	ADC #$08
+	CMP FIRST_ENEMY_Y_ADDR, x
+	BCS NoCollision
+	LDA FIRST_ENEMY_Y_ADDR, x
+	ADC #$08
+	CMP MISSLE_Y_ADDR
+	BCC NoCollision
+	
+	; found collision
+	LDA #$FF
+	STA FIRST_ENEMY_Y_ADDR, x
+	STA MISSLE_Y_ADDR
+	
+NoCollision:
+	INX   
+	INX
+	INX
+	INX	
+	CPX #ENEMY_SPRITE_DATA_LEN                   ; bytes of enemy sprite data
+	BNE CheckMissleCollisionLoop   ; Branch to LoadSpritesLoop if compare was Not Equal to zero
+						       ; reached end of enemysprite data, keeep going down
+
+CheckMissleCollisionEnd:
+    RTS
+
 init_apu:
         ; Init $4000-4013
         ldy #$13
