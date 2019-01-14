@@ -220,6 +220,8 @@ BUTTON_RIGHT  = 1 << 0
 
 processinput:
 ; read the controller button status and update the player movement velocities
+MIN_X_VELOCITY = $FD
+MAX_X_VELOCITY = $03
 
 	
 ReadLeft:
@@ -227,7 +229,17 @@ ReadLeft:
 	AND #BUTTON_LEFT  
 	BEQ ReadRight   ; branch if button is NOT pressed (0)
 				  ; add instructions here to do something when button IS pressed (1)
-	LDA #$FF		  
+	LDA xvelocity
+	SBC #$01
+	CMP #MIN_X_VELOCITY
+	BMI ReachMinVelocity
+	JMP WriteVelocityLeft
+ReachMinVelocity:
+	LDA #MIN_X_VELOCITY
+	STA xvelocity
+	JMP ReadLeftRightDone
+	
+WriteVelocityLeft:		  
 	STA xvelocity
 	JMP ReadLeftRightDone
 
@@ -237,13 +249,36 @@ ReadRight:
 	BEQ ReadLeftRightReleased   ; branch if button is NOT pressed (0)
 				  ; add instructions here to do something when button IS pressed (1)
 
-	LDA #$01			  
+	LDA xvelocity
+	ADC #$01
+	CMP #MAX_X_VELOCITY
+	BPL ReachMaxVelocity
+	JMP WriteVelocityRight
+ReachMaxVelocity:
+	LDA #MAX_X_VELOCITY
+	STA xvelocity
+	JMP ReadLeftRightDone
+WriteVelocityRight:		  
 	STA xvelocity
 	JMP ReadLeftRightDone
 
+
 ReadLeftRightReleased:
 	; neither up or down was pressed, clear the y velocity
-    LDA #$00
+    LDA xvelocity
+	CMP #$00
+	BMI IncreaseVelocity
+	BEQ ReadLeftRightDone
+	BPL DecreaseVelocity
+	JMP ReadLeftRightDone
+	
+DecreaseVelocity:
+	SBC #$01
+	JMP WriteVelocityChange
+	
+IncreaseVelocity:
+	ADC #$01
+WriteVelocityChange:
 	STA xvelocity
 
 ReadLeftRightDone:        ; done handling left/right input
