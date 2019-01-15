@@ -452,15 +452,15 @@ CheckMissleCollision:
 	
 	LDX $00             ; start at 0
 CheckMissleCollisionLoop:
-; enemy.x > missle.x + missle.width ||
+; missle.x + missle.width < enemy.x ||
 ; enemy.x + enemy.width < missle.x ||
-; enemy.y > missle.y + missle.height ||
+; missle.y + missle.height < enemy.y||
 ; enemy.y + enemy.height < missle.y
 ;  then no collision
 	LDA MISSLE_X_ADDR
 	ADC #$08
 	CMP FIRST_ENEMY_X_ADDR, x
-	BCS NoCollision
+	BCC NoCollision
 	LDA FIRST_ENEMY_X_ADDR, x
 	ADC #$08
 	CMP MISSLE_X_ADDR
@@ -469,7 +469,7 @@ CheckMissleCollisionLoop:
 	LDA MISSLE_Y_ADDR
 	ADC #$08
 	CMP FIRST_ENEMY_Y_ADDR, x
-	BCS NoCollision
+	BCC NoCollision
 	LDA FIRST_ENEMY_Y_ADDR, x
 	ADC #$08
 	CMP MISSLE_Y_ADDR
