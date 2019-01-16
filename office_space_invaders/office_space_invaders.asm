@@ -25,6 +25,7 @@ playery: .res 1
 enemyx: .res 1
 enemyy: .res 1
 
+oddframe: .res 1   ; toggles every other frame, used for advancing things such as animations only on every other frame
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .segment "STARTUP" ; avoids warning
 .segment "CODE"
@@ -180,6 +181,11 @@ nmi:
 	jsr CheckMissleCollision
 	jsr MoveEnemySprites
 	jsr MoveEnemySpritesLoop
+	
+	LDA oddframe
+	EOR #$01
+	STA oddframe
+	
 	rti  ; return from interrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -304,12 +310,11 @@ ReadButtonA:
 	STA MISSLE_X_ADDR
 	
 	; fire missle sound
-	lda #$9F
-    sta $400C
-    lda #$22
-    sta $400E
-	lda #$80
-	sta $400F
+    lda #$9F
+    sta $4000
+    lda #$13
+    sta $4003
+
 	
 ReadButtonADone:
 
@@ -426,8 +431,12 @@ UpdatePlayerSprites:
 	
 FIRST_ENEMY_Y_ADDR = $0214
 FIRST_ENEMY_X_ADDR = $0217
+FIRST_ENEMY_TILE_ADDR = FIRST_ENEMY_Y_ADDR + 1
+
 ENEMY_SPRITE_DATA_LEN = $98
-	
+
+ENEMY_EXPLOSION_START_TILE = $08  ; tile index of first frame of enemy explosion
+ENEMY_EXPLOSION_END_TILE = $0A
 MoveEnemySprites:
 	LDX $00             ; start at 0
 	RTS
@@ -435,7 +444,26 @@ MoveEnemySpritesLoop:
 	LDA FIRST_ENEMY_X_ADDR, x
 	CLC
 	ADC #$01
-	STA FIRST_ENEMY_X_ADDR, x     
+	STA FIRST_ENEMY_X_ADDR, x
+	
+	; check if this enemy is exploding and update animation
+	LDA oddframe
+	CMP #$01
+	BEQ StepToNextEnemy   ; skip this animation step every other frame
+	LDA FIRST_ENEMY_TILE_ADDR, x
+	CMP #ENEMY_EXPLOSION_START_TILE
+	BCC StepToNextEnemy
+	CMP #ENEMY_EXPLOSION_END_TILE
+	BCS DisableEnemy
+	ADC #$01        ; increment the tile index for this frame of animation
+	STA FIRST_ENEMY_TILE_ADDR, x  ; store new tile number in this enemy sprite
+	JMP StepToNextEnemy
+
+DisableEnemy:
+	LDA #$FF
+	STA FIRST_ENEMY_Y_ADDR, x   ; hide the enemy sprite
+	
+StepToNextEnemy:
 	INX   
 	INX
 	INX
@@ -476,9 +504,20 @@ CheckMissleCollisionLoop:
 	BCC NoCollision
 	
 	; found collision
+	; TODO - check if this is still a valid enemy sprite and not an explosion
+
 	LDA #$FF
-	STA FIRST_ENEMY_Y_ADDR, x
-	STA MISSLE_Y_ADDR
+	STA MISSLE_Y_ADDR   ;remove missle sprite
+	LDA #ENEMY_EXPLOSION_START_TILE
+	STA FIRST_ENEMY_TILE_ADDR, x  ; set enemy sprite to explosion animation
+	
+	; explosding enemy sound
+	lda #$9F
+    sta $400C
+    lda #$22
+    sta $400E
+	lda #$80
+	sta $400F
 	
 NoCollision:
 	INX   
@@ -575,7 +614,7 @@ enemysprites:
   .byte $10, $05, $00, $9E   ;enemy type 5
   .byte $10, $05, $00, $AE   ;enemy type 5
 
-	
+
 .segment "CHARS"
     .incbin "office_space_invaders.chr" ; include chr data file
 	
