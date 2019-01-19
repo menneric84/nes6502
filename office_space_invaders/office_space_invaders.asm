@@ -23,6 +23,8 @@ yvelocity: .res 1
 playerx: .res 1
 playery: .res 1
 
+score: .res 2
+
 enemyx: .res 1
 enemyy: .res 1
 
@@ -522,6 +524,23 @@ CheckMissleCollisionLoop:
     sta $400E
 	lda #$80
 	sta $400F
+	
+;	; increase score (16-bit increment)
+;	inc score
+;	bne noincscore
+;	inc score+1
+;noincscore:
+	
+	; add score (16-bit plus 8-bit value)
+	lda score
+	clc
+	adc #50     ;points to score
+	bcs inchighbyte
+	jmp storelowbyte
+inchighbyte:
+	inc score+1  ;increment high byte if overflow
+storelowbyte:
+	sta score
 	
 NoCollision:
 	INX   
