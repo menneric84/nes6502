@@ -10,8 +10,9 @@
 	.word reset
 	.word irq
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
-.segment "ZEROPAGE"
 
+
+.segment "BSS"
 ; we reserve one byte for storing the data that is read from controller
 buttons1: .res 1   ; hold state of controller 1
 buttons2: .res 1   ; hold state of controller 2
@@ -26,8 +27,11 @@ enemyx: .res 1
 enemyy: .res 1
 
 oddframe: .res 1   ; toggles every other frame, used for advancing things such as animations only on every other frame
+
+.segment "OAM"
+sprites: .res 256
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.segment "STARTUP" ; avoids warning
 .segment "CODE"
 reset:
 	sei        ; ignore IRQs
