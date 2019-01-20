@@ -11,6 +11,7 @@
 	.word irq
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
 
+NUM_SCORE_DIGITS = 6
 
 .segment "BSS"
 ; we reserve one byte for storing the data that is read from controller
@@ -23,7 +24,7 @@ yvelocity: .res 1
 playerx: .res 1
 playery: .res 1
 
-score: .res 2
+score: .res NUM_SCORE_DIGITS
 
 enemyx: .res 1
 enemyy: .res 1
@@ -159,12 +160,16 @@ LoadEnemySpritesLoop:
 	STA enemyx
 	LDA #$50
 	STA enemyy
-	LDA #%10000000   ; enable NMI, sprites from Pattern Table 1
+    LDA #%10000000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
 	STA $2000
 
-	LDA #%10010000   ; enable sprites
+	LDA #%00011010   ; enable sprites, enable background
 	STA $2001
 
+	LDA #$00        ;;tell the ppu there is no background scrolling
+	STA $2005
+	STA $2005
+  
 	jsr init_apu
 	
 forever:
@@ -179,6 +184,17 @@ nmi:
 	LDA #$02
 	STA $4014       ; set the high byte (02) of the RAM address, start the transfer (DMA transfer 256 bytes)
 	
+	jsr DrawScore
+
+  ;;This is the PPU clean up section, so rendering the next frame starts properly.
+    LDA #%10000000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
+  STA $2000
+	LDA #%00011010   ; enable sprites, enable background
+  STA $2001
+  LDA #$00        ;;tell the ppu there is no background scrolling
+  STA $2005
+  STA $2005
+
 	jsr readjoy
 	jsr processinput
 	jsr moveplayer
@@ -460,7 +476,7 @@ MoveEnemySpritesLoop:
 	CMP #ENEMY_EXPLOSION_START_TILE
 	BCC StepToNextEnemy
 	CMP #ENEMY_EXPLOSION_END_TILE
-	BCS DisableEnemy
+	BEQ DisableEnemy
 	ADC #$01        ; increment the tile index for this frame of animation
 	STA FIRST_ENEMY_TILE_ADDR, x  ; store new tile number in this enemy sprite
 	JMP StepToNextEnemy
@@ -532,15 +548,17 @@ CheckMissleCollisionLoop:
 ;noincscore:
 	
 	; add score (16-bit plus 8-bit value)
-	lda score
-	clc
-	adc #50     ;points to score
-	bcs inchighbyte
-	jmp storelowbyte
-inchighbyte:
-	inc score+1  ;increment high byte if overflow
-storelowbyte:
-	sta score
+;	lda score
+;	clc
+;	adc #50     ;points to score
+;	bcs inchighbyte
+;	jmp storelowbyte
+;inchighbyte:
+;	inc score+1  ;increment high byte if overflow
+;storelowbyte:
+;	sta score
+	jsr AddPoints
+	jmp CheckMissleCollisionEnd   ;missle was removed so stop checking (also AddPoints will alter the x register so the loop would be broken here)
 	
 NoCollision:
 	INX   
@@ -554,6 +572,52 @@ NoCollision:
 CheckMissleCollisionEnd:
     RTS
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+points25: .byte 0,0,0,0,2,5
+AddPoints:
+	ldy #NUM_SCORE_DIGITS-1
+	ldx #NUM_SCORE_DIGITS-2  ; next left digit
+	clc
+pointsloop:	
+	lda score, y
+	clc
+	adc points25, y
+	cmp #10
+	bcc digitend   
+	; digit went over 10 so carry the 1
+	sec
+	sbc #10  ; drop second digit to save only the rightmost
+	cpx points25
+	bcc addpointsend   ;went past left most digit so this is a rollover
+	
+	inc score,x   ; carry the 1 to the next left digit
+digitend:
+	sta score, y   ;save this digit
+	dex
+	dey
+	bpl pointsloop
+addpointsend:
+	rts
+	
+DrawScore:
+	LDA $2002
+	LDA #$20
+	STA $2006
+	LDA #$20
+	STA $2006          ; start drawing the score at PPU $2020
+
+	ldx #0
+digitloop:  
+	LDA #$10  ; get first digit
+	CLC
+	ADC score, x  ; add digit offset
+	STA $2007          ; draw to background
+	inx
+	cpx #NUM_SCORE_DIGITS
+	bne digitloop
+	rts
+	
 init_apu:
         ; Init $4000-4013
         ldy #$13
@@ -575,12 +639,13 @@ init_apu_regs:
         .byte $80,$00,$00,$00
         .byte $30,$00,$00,$00
         .byte $00,$00,$00,$00
-		
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; constant data		
 palette:
-  .byte $30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$3A,$3B,$3C,$3D,$3E,$0F
-  .byte $0F,$1C,$15,$14,$31,$02,$38,$3C,$0F,$1C,$15,$14,$31,$02,$38,$3C
+  .byte $0F,$0F,$32,$33,$34,$35,$36,$37,$38,$39,$3A,$3B,$3C,$3D,$3E,$30 ; background
+  .byte $00,$1C,$15,$14,$31,$02,$38,$3C,$0F,$1C,$15,$14,$31,$02,$38,$3C ; sprites
 
 playersprites:
   ;vert tile attr horiz
